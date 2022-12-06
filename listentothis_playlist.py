@@ -115,6 +115,3 @@ def main():
     print(Fore.GREEN + "Finished!")
 
 main()
-
-#spotify.playlist_add_items(playlist_id, [id])
-
