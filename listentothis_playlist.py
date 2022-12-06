@@ -35,7 +35,7 @@ def get_reddit_songs(number, time):
                 artists.append(split[0].strip())
                 tracks.append(split[1].strip())
 
-    return artists[0:number], tracks[0:number]
+    return artists, tracks
 
 def search_spotify(spotify, artists, tracks):
     track_ids = []
