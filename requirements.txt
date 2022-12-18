@@ -1,0 +1,6 @@
+praw==7.6.1
+spotipy==2.22.0
+colorama==0.4.6
+fuzzywuzzy==0.18.0
+pandas==1.5.2
+ipython==8.7.0
