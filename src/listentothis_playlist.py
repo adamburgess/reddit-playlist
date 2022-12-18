@@ -1,19 +1,18 @@
-import praw
-import sys
+import os
 import re
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-from spotipy.oauth2 import SpotifyOAuth
-from colorama import Fore, Back, Style    
-from fuzzywuzzy import fuzz
-from math import ceil
-import pandas as pd
-from IPython.display import display
-from os.path import exists
 import time
+from os.path import exists
 
-import reddit_secret
-import spotify_secret
+import pandas as pd
+import praw
+import spotipy
+from colorama import Fore
+from dotenv import load_dotenv
+from fuzzywuzzy import fuzz
+from IPython.display import display
+from spotipy.oauth2 import SpotifyOAuth
+
+load_dotenv()
 
 def parse_submission(submission):
     # parse the title
@@ -29,13 +28,11 @@ def parse_submission(submission):
             return [submission.id, split[0].strip(), split[1].strip()]
     return [submission.id, pd.NA, pd.NA]
 
-def get_reddit_songs(number, time, songs):
+def get_reddit_songs(number: int, time: str, songs):
+    REDDIT_CLIENT_ID = os.environ['REDDIT_CLIENT_ID']
+    REDDIT_CLIENT_SECRET = os.environ['REDDIT_CLIENT_SECRET']
     # connect to reddit
-    reddit = praw.Reddit(
-        client_id=reddit_secret.client_id,
-        client_secret=reddit_secret.client_secret,
-        user_agent="script to get songs"
-    )
+    reddit = praw.Reddit(client_id=REDDIT_CLIENT_ID, client_secret=REDDIT_CLIENT_SECRET, user_agent="adamburgess/reddit-playlist")
 
     # find the songs and put them in a temporary dataframe
     new_songs = pd.DataFrame(columns=songs.columns)
@@ -61,7 +58,7 @@ def lookup_song(spotify, artist, track):
         return items[0]
     else:
         # do a general search
-        results = spotify.search(q= track + " " + artist, type='track')
+        results = spotify.search(q=track + " " + artist, type='track')
         items = results['tracks']['items']
         print(Fore.RED + f"Couldn't find song {track} by {artist}, ", end="")
         if len(items) > 0:
@@ -70,7 +67,7 @@ def lookup_song(spotify, artist, track):
                 fuzz.partial_ratio(artist.lower(), items[0]['artists'][0]['name'].lower()))/2, \
                 (fuzz.partial_ratio(artist.lower(), items[0]['name'].lower()) + \
                 fuzz.partial_ratio(track.lower(), items[0]['artists'][0]['name'].lower()))/2)
-            
+
             if fuzzy_ratio > 85:
                 print(Fore.GREEN + f"added closest match {items[0]['name']} by {items[0]['artists'][0]['name']} {fuzzy_ratio}%")
                 return items[0]
@@ -78,7 +75,7 @@ def lookup_song(spotify, artist, track):
                 print(Fore.MAGENTA + f"closest match {items[0]['name']} by {items[0]['artists'][0]['name']} {fuzzy_ratio}%")
         else:
             print(Fore.RED + "no matches")
-    
+
     return pd.NA
 
 def list_has_data(x):
@@ -89,7 +86,10 @@ def list_has_data(x):
 
 def search_spotify(spotify, songs):
     # get the songs from spotify if we don't have them yet
-    spotify_songs = [lookup_song(spotify, artist, track) if pd.isna(spotify_id) else pd.NA for artist, track, spotify_id in zip(songs['reddit_artist'], songs['reddit_track'], songs['spotify_id'])]
+    spotify_songs = [
+        lookup_song(spotify, artist, track) if pd.isna(spotify_id) else pd.NA
+        for artist, track, spotify_id in zip(songs['reddit_artist'], songs['reddit_track'], songs['spotify_id'])
+    ]
 
     # add columns to the dataframe
     # if the column already has data, use that data
@@ -125,8 +125,7 @@ def clear_playlist(spotify, playlist_id):
             break
 
         # clear playlist
-        results = spotify.playlist_remove_all_occurrences_of_items(
-            playlist_id, track_ids)
+        results = spotify.playlist_remove_all_occurrences_of_items(playlist_id, track_ids)
 
 def main():
     start = time.time()
@@ -140,8 +139,8 @@ def main():
     songs = get_reddit_songs(1000, "all", songs)
 
     # connect to spotify
-    SPOTIFY_CLIENT_ID = spotify_secret.client_id
-    SPOTIFY_CLIENT_SECRET = spotify_secret.client_secret
+    SPOTIFY_CLIENT_ID = os.environ['SPOTIFY_CLIENT_ID']
+    SPOTIFY_CLIENT_SECRET = os.environ['SPOTIFY_CLIENT_SECRET']
     SPOTIFY_REDIRECT_URI = "https://localhost:8888/callback"
     scope = "playlist-modify-private"
     auth_manager = SpotifyOAuth(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, scope=scope)
@@ -161,7 +160,7 @@ def main():
 
     end = time.time()
 
-    print("Duration: " + str(end-start))
+    print("Duration: " + str(end - start))
 
     # # clear playlist
     # playlist_id = 'spotify:user:spotifycharts:playlist:1npO7ZQgRHerQuAOI0rjle'
